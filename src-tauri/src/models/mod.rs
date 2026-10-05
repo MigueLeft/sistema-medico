@@ -1,0 +1,21 @@
+mod antecedente;
+mod cita;
+mod consulta;
+mod enfermedad;
+mod entregable;
+mod examen;
+mod examen_fisico;
+mod composicion_corporal;
+mod paciente;
+mod tratamiento;
+
+pub use antecedente::*;
+pub use cita::*;
+pub use consulta::*;
+pub use enfermedad::*;
+pub use entregable::*;
+pub use examen::*;
+pub use examen_fisico::*;
+pub use composicion_corporal::*;
+pub use paciente::*;
+pub use tratamiento::*;

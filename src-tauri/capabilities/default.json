@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "main-capability",
+  "description": "Capacidades de la ventana principal del sistema médico",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}

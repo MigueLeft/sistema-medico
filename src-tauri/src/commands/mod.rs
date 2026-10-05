@@ -1,0 +1,12 @@
+pub mod antecedentes;
+pub mod auth;
+pub mod citas;
+pub mod composicion_corporal;
+pub mod consultas;
+pub mod enfermedades;
+pub mod entregables;
+pub mod examen_fisico;
+pub mod examenes;
+pub mod patients;
+pub mod setup;
+pub mod tratamientos;
