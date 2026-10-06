@@ -1,5 +1,3 @@
-export { ExamenesPanel } from './components/ExamenesPanel';
-export { CrearTipoExamenCatalogoDialog } from './components/CrearTipoExamenCatalogoDialog';
-export { useExamenesPaciente, useCrearTipoExamenCatalogo } from './hooks/useExamenes';
+export { useExamenesPaciente, useCrearExamen, useEliminarExamen, useRegistrarResultadoExamen, examenesKey } from './hooks/useExamenes';
 export { examenesService } from './services/examenes.service';
-export type { Examen, TipoExamenCatalogo, ExamenValor, CategoriaExamen, EstadoExamen, CreateTipoExamenCatalogoPayload } from './types';
+export type { BanderaExamen, CreateExamenPayload, EstadoExamen, Examen, RegistrarResultadoExamenPayload } from './types';

@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { createRootRoute, Outlet, useNavigate, useRouterState } from '@tanstack/react-router';
 import { Box, CircularProgress } from '@mui/material';
 import { Toaster } from 'sonner';
-import { AppLayout } from '@/components/AppLayout';
+import { AppShell } from '@/components/AppShell';
 import { useHaySistemaConfigurado, useSesionActual } from '@/features/auth';
 
 export const Route = createRootRoute({
@@ -85,9 +85,9 @@ function RootComponent() {
           </Box>
         </Box>
       ) : (
-        <AppLayout>
+        <AppShell>
           <Outlet />
-        </AppLayout>
+        </AppShell>
       )}
     </>
   );

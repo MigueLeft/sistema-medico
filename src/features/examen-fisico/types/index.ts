@@ -7,14 +7,15 @@ export interface ExamenFisico {
   taDiastolica: number | null;
   pesoKg: number | null;
   tallaCm: number | null;
-  imc: number | null;
+  imc: number | null; // calculado
   grasaCorporalPct: number | null;
-  grasaCorporalKg: number | null;
-  masaMuscularPct: number | null;
+  grasaCorporalKg: number | null; // calculado
+  masaMagraKg: number | null; // calculado
+  masaMuscularPct: number | null; // calculado a partir de masaMuscularKg
   masaMuscularKg: number | null;
   circunferenciaAbdominalCm: number | null;
   circunferenciaCaderaCm: number | null;
-  indiceCinturaCadera: number | null;
+  indiceCinturaCadera: number | null; // calculado
   circunferenciaCuelloCm: number | null;
   fuerzaManoDerechaKg: number | null;
   fuerzaManoIzquierdaKg: number | null;
@@ -25,23 +26,24 @@ export interface ExamenFisico {
   notas: string | null;
 }
 
-export interface CreateExamenFisicoPayload {
+/** Los campos calculados (imc, grasaCorporalKg, masaMagraKg, masaMuscularPct, indiceCinturaCadera) los deriva Rust. */
+export interface GuardarExamenFisicoPayload {
   pacienteId: string;
   consultaId: string;
-  taSistolica?: number;
-  taDiastolica?: number;
-  pesoKg?: number;
-  tallaCm?: number;
-  grasaCorporalPct?: number;
-  masaMuscularPct?: number;
-  circunferenciaAbdominalCm?: number;
-  circunferenciaCaderaCm?: number;
-  circunferenciaCuelloCm?: number;
-  fuerzaManoDerechaKg?: number;
-  fuerzaManoIzquierdaKg?: number;
-  fc?: number;
-  temperatura?: number;
-  frecuenciaRespiratoria?: number;
-  saturacionOxigenoPct?: number;
-  notas?: string;
+  taSistolica: number | null;
+  taDiastolica: number | null;
+  pesoKg: number | null;
+  tallaCm: number | null;
+  grasaCorporalPct: number | null;
+  masaMuscularKg: number | null;
+  circunferenciaAbdominalCm: number | null;
+  circunferenciaCaderaCm: number | null;
+  circunferenciaCuelloCm: number | null;
+  fuerzaManoDerechaKg: number | null;
+  fuerzaManoIzquierdaKg: number | null;
+  fc: number | null;
+  temperatura: number | null;
+  frecuenciaRespiratoria: number | null;
+  saturacionOxigenoPct: number | null;
+  notas: string | null;
 }

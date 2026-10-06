@@ -1,3 +1,3 @@
-export { ExamenFisicoPanel } from './components/ExamenFisicoPanel';
-export { useExamenFisicoPaciente } from './hooks/useExamenFisico';
-export type { ExamenFisico, CreateExamenFisicoPayload } from './types';
+export { useExamenFisicoPaciente, useExamenFisicoConsulta, useGuardarExamenFisico, examenFisicoKey, examenFisicoConsultaKey } from './hooks/useExamenFisico';
+export { examenFisicoService } from './services/examenFisico.service';
+export type { ExamenFisico, GuardarExamenFisicoPayload } from './types';

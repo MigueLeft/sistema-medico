@@ -4,6 +4,7 @@ export interface MedicamentoCatalogo {
   principioActivo: string;
   presentacion: string | null;
   concentracion: string | null;
+  alergenos: string | null;
 }
 
 export interface CreateMedicamentoCatalogoPayload {
@@ -17,6 +18,9 @@ export interface TratamientoMedicamento {
   id: string;
   medicamentoId: string;
   medicamentoNombre: string;
+  presentacion: string | null;
+  concentracion: string | null;
+  alergenos: string | null;
   dosis: string;
   frecuencia: string;
   duracion: string | null;

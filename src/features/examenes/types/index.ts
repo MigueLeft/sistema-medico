@@ -1,18 +1,5 @@
-export type CategoriaExamen = 'laboratorio' | 'imagenologia' | 'otro';
-export type EstadoExamen = 'solicitado' | 'en_proceso' | 'completado' | 'cancelado';
-
-export interface TipoExamenCatalogo {
-  id: string;
-  nombre: string;
-  categoria: CategoriaExamen;
-  codigoLoinc: string | null;
-}
-
-export interface CreateTipoExamenCatalogoPayload {
-  nombre: string;
-  categoria: CategoriaExamen;
-  codigoLoinc?: string;
-}
+export type EstadoExamen = 'solicitado' | 'resultado';
+export type BanderaExamen = 'normal' | 'alto' | 'bajo';
 
 export interface Examen {
   id: string;
@@ -20,10 +7,16 @@ export interface Examen {
   consultaId: string;
   tipoExamenId: string;
   tipoExamenNombre: string;
-  tipoExamenCategoria: CategoriaExamen;
+  tipoExamenCategoria: string;
+  codigoLoinc: string | null;
+  grupo: string | null;
+  unidad: string | null;
   fechaSolicitud: string;
   fechaResultado: string | null;
   estado: EstadoExamen;
+  indicacion: string | null;
+  valor: number | null;
+  bandera: BanderaExamen | null;
   notas: string | null;
 }
 
@@ -32,30 +25,11 @@ export interface CreateExamenPayload {
   consultaId: string;
   tipoExamenId: string;
   fechaSolicitud: string;
-  notas?: string;
+  indicacion?: string | null;
+  notas?: string | null;
 }
 
-export interface ActualizarResultadoExamenPayload {
-  fechaResultado: string;
-  estado: EstadoExamen;
-  notas?: string;
-}
-
-export interface ExamenValor {
-  id: string;
-  examenId: string;
-  analito: string;
-  valor: string;
-  unidad: string | null;
-  rangoReferencia: string | null;
-  fueraRango: boolean;
-}
-
-export interface CreateExamenValorPayload {
-  examenId: string;
-  analito: string;
-  valor: string;
-  unidad?: string;
-  rangoReferencia?: string;
-  fueraRango: boolean;
+export interface RegistrarResultadoExamenPayload {
+  valor: number | null;
+  notas?: string | null;
 }

@@ -1,25 +1,12 @@
 use rusqlite::Row;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TipoExamenCatalogo {
-    pub id: String,
-    pub nombre: String,
-    pub categoria: String,
-    pub codigo_loinc: Option<String>,
-}
-
-impl TipoExamenCatalogo {
-    pub fn from_row(row: &Row) -> rusqlite::Result<Self> {
-        Ok(Self {
-            id: row.get("id")?,
-            nombre: row.get("nombre")?,
-            categoria: row.get("categoria")?,
-            codigo_loinc: row.get("codigo_loinc")?,
-        })
-    }
-}
+modelo!(TipoExamenCatalogo {
+    id: String,
+    nombre: String,
+    categoria: String,
+    codigo_loinc: Option<String>,
+});
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -29,37 +16,24 @@ pub struct CreateTipoExamenCatalogoPayload {
     pub codigo_loinc: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Examen {
-    pub id: String,
-    pub paciente_id: String,
-    pub consulta_id: String,
-    pub tipo_examen_id: String,
-    pub tipo_examen_nombre: String,
-    pub tipo_examen_categoria: String,
-    pub fecha_solicitud: String,
-    pub fecha_resultado: Option<String>,
-    pub estado: String,
-    pub notas: Option<String>,
-}
-
-impl Examen {
-    pub fn from_row(row: &Row) -> rusqlite::Result<Self> {
-        Ok(Self {
-            id: row.get("id")?,
-            paciente_id: row.get("paciente_id")?,
-            consulta_id: row.get("consulta_id")?,
-            tipo_examen_id: row.get("tipo_examen_id")?,
-            tipo_examen_nombre: row.get("tipo_examen_nombre")?,
-            tipo_examen_categoria: row.get("tipo_examen_categoria")?,
-            fecha_solicitud: row.get("fecha_solicitud")?,
-            fecha_resultado: row.get("fecha_resultado")?,
-            estado: row.get("estado")?,
-            notas: row.get("notas")?,
-        })
-    }
-}
+modelo!(Examen {
+    id: String,
+    paciente_id: String,
+    consulta_id: String,
+    tipo_examen_id: String,
+    tipo_examen_nombre: String,
+    tipo_examen_categoria: String,
+    codigo_loinc: Option<String>,
+    grupo: Option<String>,
+    unidad: Option<String>,
+    fecha_solicitud: String,
+    fecha_resultado: Option<String>,
+    estado: String,
+    indicacion: Option<String>,
+    valor: Option<f64>,
+    bandera: Option<String>,
+    notas: Option<String>,
+});
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -68,6 +42,14 @@ pub struct CreateExamenPayload {
     pub consulta_id: String,
     pub tipo_examen_id: String,
     pub fecha_solicitud: String,
+    pub indicacion: Option<String>,
+    pub notas: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RegistrarResultadoExamenPayload {
+    pub valor: Option<f64>,
     pub notas: Option<String>,
 }
 

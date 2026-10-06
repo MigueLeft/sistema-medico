@@ -6,6 +6,7 @@ use crate::audit::{self, Accion};
 use crate::db::DbPool;
 use crate::error::{ErrorApp, Resultado};
 use crate::models::{CreateMedicamentoCatalogoPayload, GuardarTratamientoPayload, MedicamentoCatalogo, Tratamiento, TratamientoMedicamento};
+use crate::commands::consultas::exigir_borrador;
 use crate::session::SessionState;
 
 fn cargar_tratamiento(conn: &Connection, consulta_id: &str) -> Resultado<Option<Tratamiento>> {
@@ -28,7 +29,8 @@ fn cargar_tratamiento(conn: &Connection, consulta_id: &str) -> Resultado<Option<
     )?;
 
     let mut stmt = conn.prepare(
-        "SELECT tm.id, tm.medicamento_id, mc.nombre_comercial as medicamento_nombre, tm.dosis, tm.frecuencia, tm.duracion, tm.via, tm.indicaciones
+        "SELECT tm.id, tm.medicamento_id, mc.nombre_comercial as medicamento_nombre, mc.presentacion, mc.concentracion,
+                mc.alergenos, tm.dosis, tm.frecuencia, tm.duracion, tm.via, tm.indicaciones
          FROM tratamiento_medicamento tm
          JOIN medicamento_catalogo mc ON mc.id = tm.medicamento_id
          WHERE tm.tratamiento_id = ?1 AND tm.deleted_at IS NULL",
@@ -50,7 +52,7 @@ pub fn buscar_catalogo_medicamentos(pool: State<DbPool>, query: String) -> Resul
     let conn = pool.get()?;
     let patron = format!("%{}%", query);
     let mut stmt = conn.prepare(
-        "SELECT id, nombre_comercial, principio_activo, presentacion, concentracion FROM medicamento_catalogo
+        "SELECT id, nombre_comercial, principio_activo, presentacion, concentracion, alergenos FROM medicamento_catalogo
          WHERE activo = 1 AND (nombre_comercial LIKE ?1 OR principio_activo LIKE ?1) ORDER BY nombre_comercial LIMIT 30",
     )?;
     let items = stmt
@@ -83,7 +85,7 @@ pub fn crear_medicamento_catalogo(
     )?;
 
     conn.query_row(
-        "SELECT id, nombre_comercial, principio_activo, presentacion, concentracion FROM medicamento_catalogo WHERE id = ?1",
+        "SELECT id, nombre_comercial, principio_activo, presentacion, concentracion, alergenos FROM medicamento_catalogo WHERE id = ?1",
         rusqlite::params![id],
         MedicamentoCatalogo::from_row,
     )
@@ -104,6 +106,7 @@ pub fn guardar_tratamiento(
 ) -> Resultado<Tratamiento> {
     let session = session_state.get().ok_or(ErrorApp::SinSesion)?;
     let mut conn = pool.get()?;
+    exigir_borrador(&conn, &payload.consulta_id)?;
     let tx = conn.transaction()?;
 
     let tratamiento_id: Option<String> = tx

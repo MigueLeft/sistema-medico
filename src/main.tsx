@@ -7,6 +7,8 @@ import { RouterProvider, createRouter } from '@tanstack/react-router';
 import { theme } from './theme';
 import { queryClient } from './lib/query-client';
 import { routeTree } from './routeTree.gen';
+import './styles/clinica.css';
+import './styles/app.css';
 
 const router = createRouter({ routeTree, defaultPreload: 'intent' });
 

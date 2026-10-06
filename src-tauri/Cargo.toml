@@ -29,6 +29,9 @@ thiserror = "1"
 printpdf = { version = "0.12", features = ["html"] }
 sha2 = "0.10"
 
+[dev-dependencies]
+tauri = { version = "2", features = ["test"] }
+
 [profile.release]
 panic = "abort"
 codegen-units = 1

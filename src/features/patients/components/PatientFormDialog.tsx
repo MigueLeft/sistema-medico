@@ -1,188 +1,198 @@
 import { useEffect } from 'react';
-import { Controller, useForm, useWatch } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import {
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  MenuItem,
-  Stack,
-  TextField,
-} from '@mui/material';
-import { differenceInYears, isValid, parseISO } from 'date-fns';
-import { useCrearPaciente, useActualizarPaciente } from '../hooks/usePatients';
-import type { PacienteConExpediente } from '../types';
+import { Button, Modal, Select, TextField } from '@/components/ui';
+import { useActualizarPaciente, useCrearPaciente } from '../hooks/usePatients';
+import type { CreatePacientePayload, PacienteConExpediente } from '../types';
 
 const schema = z.object({
-  documentoIdentidad: z.string().min(1, 'Requerido'),
-  nombres: z.string().min(1, 'Requerido'),
-  apellidos: z.string().min(1, 'Requerido'),
-  fechaNacimiento: z.string().min(1, 'Requerido'),
-  sexo: z.enum(['masculino', 'femenino', 'otro']),
-  telefono: z.string().optional(),
-  email: z.string().email('Correo inválido').optional().or(z.literal('')),
+  nombres: z.string().trim().min(1, 'Los nombres son requeridos'),
+  apellidos: z.string().trim().min(1, 'Los apellidos son requeridos'),
+  documentoIdentidad: z.string().trim().min(1, 'La cédula es requerida'),
+  fechaNacimiento: z
+    .string()
+    .min(1, 'La fecha de nacimiento es requerida')
+    .refine((v) => v <= new Date().toISOString().slice(0, 10), 'La fecha no puede ser futura'),
+  sexo: z.enum(['femenino', 'masculino', 'otro']),
+  grupoSanguineo: z.string(),
+  telefono: z.string(),
+  email: z.string().trim().email('Correo inválido').or(z.literal('')),
+  estadoCivil: z.string(),
+  ocupacion: z.string(),
+  direccion: z.string(),
+  contactoEmergenciaNombre: z.string(),
+  contactoEmergenciaParentesco: z.string(),
+  contactoEmergenciaTelefono: z.string(),
 });
 
 type FormValues = z.infer<typeof schema>;
 
-const DEFAULT_VALUES: FormValues = {
-  documentoIdentidad: '',
+const VACIO: FormValues = {
   nombres: '',
   apellidos: '',
+  documentoIdentidad: '',
   fechaNacimiento: '',
-  sexo: 'masculino',
+  sexo: 'femenino',
+  grupoSanguineo: '',
   telefono: '',
   email: '',
+  estadoCivil: '',
+  ocupacion: '',
+  direccion: '',
+  contactoEmergenciaNombre: '',
+  contactoEmergenciaParentesco: '',
+  contactoEmergenciaTelefono: '',
 };
+
+const GRUPOS = ['O+', 'O-', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-'];
+const ESTADOS_CIVILES = ['Soltero/a', 'Casado/a', 'Unión estable', 'Divorciado/a', 'Viudo/a'];
+
+function aValores(p: PacienteConExpediente): FormValues {
+  return {
+    nombres: p.nombres,
+    apellidos: p.apellidos,
+    documentoIdentidad: p.documentoIdentidad,
+    fechaNacimiento: p.fechaNacimiento,
+    sexo: p.sexo,
+    grupoSanguineo: p.grupoSanguineo ?? '',
+    telefono: p.telefono ?? '',
+    email: p.email ?? '',
+    estadoCivil: p.estadoCivil ?? '',
+    ocupacion: p.ocupacion ?? '',
+    direccion: p.direccion ?? '',
+    contactoEmergenciaNombre: p.contactoEmergenciaNombre ?? '',
+    contactoEmergenciaParentesco: p.contactoEmergenciaParentesco ?? '',
+    contactoEmergenciaTelefono: p.contactoEmergenciaTelefono ?? '',
+  };
+}
+
+const oNull = (v: string) => (v.trim() === '' ? null : v.trim());
 
 interface PatientFormDialogProps {
   open: boolean;
-  paciente?: PacienteConExpediente | null;
   onClose: () => void;
+  /** Paciente a editar; sin él, el diálogo registra uno nuevo. */
+  paciente?: PacienteConExpediente | null;
+  /** Nombre precargado al registrar desde una búsqueda. */
+  nombreInicial?: string;
+  onGuardado?: (paciente: PacienteConExpediente) => void;
 }
 
-export function PatientFormDialog({ open, paciente, onClose }: PatientFormDialogProps) {
+export function PatientFormDialog({ open, onClose, paciente, nombreInicial, onGuardado }: PatientFormDialogProps) {
   const crear = useCrearPaciente();
   const actualizar = useActualizarPaciente();
-  const isEdit = !!paciente;
-  const isPending = crear.isPending || actualizar.isPending;
-
   const {
     control,
     handleSubmit,
     reset,
     formState: { errors },
-  } = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: DEFAULT_VALUES });
-
-  const fechaNacimiento = useWatch({ control, name: 'fechaNacimiento' });
-  const fecha = fechaNacimiento ? parseISO(fechaNacimiento) : null;
-  const edad = fecha && isValid(fecha) ? differenceInYears(new Date(), fecha) : null;
+  } = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: VACIO });
 
   useEffect(() => {
-    if (open) {
-      reset(
-        paciente
-          ? {
-              documentoIdentidad: paciente.documentoIdentidad,
-              nombres: paciente.nombres,
-              apellidos: paciente.apellidos,
-              fechaNacimiento: paciente.fechaNacimiento,
-              sexo: paciente.sexo,
-              telefono: paciente.telefono ?? '',
-              email: paciente.email ?? '',
-            }
-          : DEFAULT_VALUES,
-      );
-    }
-  }, [open, paciente, reset]);
+    if (open) reset(paciente ? aValores(paciente) : { ...VACIO, nombres: nombreInicial ?? '' });
+  }, [open, paciente, nombreInicial, reset]);
 
-  const onSubmit = (values: FormValues) => {
-    const payload = {
-      ...values,
-      telefono: values.telefono || undefined,
-      email: values.email || undefined,
+  const onSubmit = (v: FormValues) => {
+    const payload: CreatePacientePayload = {
+      nombres: v.nombres,
+      apellidos: v.apellidos,
+      documentoIdentidad: v.documentoIdentidad,
+      fechaNacimiento: v.fechaNacimiento,
+      sexo: v.sexo,
+      grupoSanguineo: oNull(v.grupoSanguineo),
+      telefono: oNull(v.telefono),
+      email: oNull(v.email),
+      estadoCivil: oNull(v.estadoCivil),
+      ocupacion: oNull(v.ocupacion),
+      direccion: oNull(v.direccion),
+      contactoEmergenciaNombre: oNull(v.contactoEmergenciaNombre),
+      contactoEmergenciaParentesco: oNull(v.contactoEmergenciaParentesco),
+      contactoEmergenciaTelefono: oNull(v.contactoEmergenciaTelefono),
     };
-
-    const onSuccess = () => onClose();
-
-    if (isEdit && paciente) {
-      actualizar.mutate({ id: paciente.id, payload }, { onSuccess });
-    } else {
-      crear.mutate(payload, { onSuccess });
-    }
+    const alGuardar = (p: PacienteConExpediente) => {
+      onGuardado?.(p);
+      onClose();
+    };
+    if (paciente) actualizar.mutate({ id: paciente.id, payload }, { onSuccess: alGuardar });
+    else crear.mutate(payload, { onSuccess: alGuardar });
   };
 
+  const guardando = crear.isPending || actualizar.isPending;
+  const texto = (name: keyof FormValues, label: string, extra: { required?: boolean; type?: string; placeholder?: string } = {}) => (
+    <Controller
+      name={name}
+      control={control}
+      render={({ field }) => (
+        <TextField label={label} value={field.value} onChange={field.onChange} onBlur={field.onBlur} error={errors[name]?.message} {...extra} />
+      )}
+    />
+  );
+
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 700 }}>
-        {isEdit ? 'Editar paciente' : 'Nuevo paciente'}
-      </DialogTitle>
-      <Stack component="form" onSubmit={handleSubmit(onSubmit)} noValidate>
-        <DialogContent>
-          <Stack spacing={2.5}>
-            <Stack direction="row" spacing={2}>
-              <Controller
-                name="nombres"
-                control={control}
-                render={({ field }) => (
-                  <TextField {...field} label="Nombres" error={!!errors.nombres} helperText={errors.nombres?.message} autoFocus />
-                )}
-              />
-              <Controller
-                name="apellidos"
-                control={control}
-                render={({ field }) => (
-                  <TextField {...field} label="Apellidos" error={!!errors.apellidos} helperText={errors.apellidos?.message} />
-                )}
-              />
-            </Stack>
-            <Stack direction="row" spacing={2}>
-              <Controller
-                name="documentoIdentidad"
-                control={control}
-                render={({ field }) => (
-                  <TextField
-                    {...field}
-                    label="Nro de cédula"
-                    error={!!errors.documentoIdentidad}
-                    helperText={errors.documentoIdentidad?.message}
-                  />
-                )}
-              />
-              <Controller
-                name="fechaNacimiento"
-                control={control}
-                render={({ field }) => (
-                  <TextField
-                    {...field}
-                    label="Fecha de nacimiento"
-                    type="date"
-                    slotProps={{ inputLabel: { shrink: true } }}
-                    error={!!errors.fechaNacimiento}
-                    helperText={errors.fechaNacimiento?.message ?? (edad !== null ? `${edad} años` : undefined)}
-                  />
-                )}
-              />
-            </Stack>
-            <Controller
-              name="sexo"
-              control={control}
-              render={({ field }) => (
-                <TextField {...field} select label="Sexo">
-                  <MenuItem value="masculino">Masculino</MenuItem>
-                  <MenuItem value="femenino">Femenino</MenuItem>
-                  <MenuItem value="otro">Otro</MenuItem>
-                </TextField>
-              )}
+    <Modal
+      open={open}
+      title={paciente ? 'Editar paciente' : 'Nuevo paciente'}
+      onClose={onClose}
+      width={680}
+      footer={
+        <>
+          <Button onClick={onClose}>Cancelar</Button>
+          <Button variant="primary" disabled={guardando} onClick={handleSubmit(onSubmit)}>
+            {paciente ? 'Guardar cambios' : 'Registrar paciente'}
+          </Button>
+        </>
+      }
+    >
+      <div className="ap-grid ap-grid-2">
+        {texto('nombres', 'Nombres', { required: true })}
+        {texto('apellidos', 'Apellidos', { required: true })}
+      </div>
+      <div className="ap-grid ap-grid-4">
+        {texto('documentoIdentidad', 'Cédula', { required: true, placeholder: 'V-12.345.678' })}
+        {texto('fechaNacimiento', 'Fecha de nacimiento', { required: true, type: 'date' })}
+        <Controller
+          name="sexo"
+          control={control}
+          render={({ field }) => (
+            <Select
+              label="Sexo"
+              required
+              value={field.value}
+              onChange={field.onChange}
+              options={[
+                { value: 'femenino', label: 'Femenino' },
+                { value: 'masculino', label: 'Masculino' },
+                { value: 'otro', label: 'Otro' },
+              ]}
             />
-            <Stack direction="row" spacing={2}>
-              <Controller
-                name="telefono"
-                control={control}
-                render={({ field }) => <TextField {...field} label="Teléfono (opcional)" />}
-              />
-              <Controller
-                name="email"
-                control={control}
-                render={({ field }) => (
-                  <TextField {...field} label="Correo (opcional)" error={!!errors.email} helperText={errors.email?.message} />
-                )}
-              />
-            </Stack>
-          </Stack>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={onClose} color="inherit">
-            Cancelar
-          </Button>
-          <Button type="submit" variant="contained" loading={isPending}>
-            {isEdit ? 'Guardar cambios' : 'Registrar paciente'}
-          </Button>
-        </DialogActions>
-      </Stack>
-    </Dialog>
+          )}
+        />
+        <Controller
+          name="grupoSanguineo"
+          control={control}
+          render={({ field }) => <Select label="Grupo sanguíneo" value={field.value} onChange={field.onChange} options={GRUPOS} placeholder="Sin registrar" />}
+        />
+      </div>
+      <div className="ap-grid ap-grid-3">
+        <Controller
+          name="estadoCivil"
+          control={control}
+          render={({ field }) => <Select label="Estado civil" value={field.value} onChange={field.onChange} options={ESTADOS_CIVILES} placeholder="Sin registrar" />}
+        />
+        {texto('ocupacion', 'Ocupación')}
+        {texto('telefono', 'Teléfono')}
+      </div>
+      <div className="ap-grid ap-grid-2">
+        {texto('email', 'Correo', { type: 'email' })}
+        {texto('direccion', 'Dirección')}
+      </div>
+      <div className="ap-grupo">CONTACTO DE EMERGENCIA</div>
+      <div className="ap-grid ap-grid-3">
+        {texto('contactoEmergenciaNombre', 'Nombre')}
+        {texto('contactoEmergenciaParentesco', 'Parentesco')}
+        {texto('contactoEmergenciaTelefono', 'Teléfono')}
+      </div>
+    </Modal>
   );
 }

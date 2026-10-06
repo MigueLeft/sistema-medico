@@ -5,15 +5,18 @@ use uuid::Uuid;
 use crate::audit::{self, Accion};
 use crate::db::DbPool;
 use crate::error::{ErrorApp, Resultado};
+use crate::commands::consultas::exigir_borrador;
 use crate::models::{
     ActualizarResultadoExamenPayload, CreateExamenPayload, CreateExamenValorPayload, CreateTipoExamenCatalogoPayload,
-    Examen, ExamenValor, TipoExamenCatalogo,
+    Examen, ExamenValor, RegistrarResultadoExamenPayload, TipoExamenCatalogo,
 };
 use crate::session::SessionState;
+use crate::util::{ahora_local, hoy_local, limpiar};
 
 const SELECT_EXAMEN: &str = "
     SELECT e.id, e.paciente_id, e.consulta_id, e.tipo_examen_id, t.nombre as tipo_examen_nombre,
-           t.categoria as tipo_examen_categoria, e.fecha_solicitud, e.fecha_resultado, e.estado, e.notas
+           t.categoria as tipo_examen_categoria, t.codigo_loinc, t.grupo, t.unidad, e.fecha_solicitud,
+           e.fecha_resultado, e.estado, e.indicacion, e.valor, e.bandera, e.notas
     FROM examen e
     JOIN tipo_examen_catalogo t ON t.id = e.tipo_examen_id
 ";
@@ -62,15 +65,18 @@ pub fn listar_examenes_paciente(pool: State<DbPool>, paciente_id: String) -> Res
     Ok(items)
 }
 
+/// Solicita un paraclínico en la consulta. El pendiente para el paciente se genera al emitir
+/// la orden (ver `entregables::emitir_entregable`), no aquí.
 #[tauri::command]
 pub fn crear_examen(pool: State<DbPool>, session_state: State<SessionState>, payload: CreateExamenPayload) -> Resultado<Examen> {
     let session = session_state.get().ok_or(ErrorApp::SinSesion)?;
     let conn = pool.get()?;
+    exigir_borrador(&conn, &payload.consulta_id)?;
     let id = Uuid::new_v4().to_string();
 
     conn.execute(
-        "INSERT INTO examen (id, organizacion_id, paciente_id, consulta_id, tipo_examen_id, fecha_solicitud, estado, notas, created_by)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'solicitado', ?7, ?8)",
+        "INSERT INTO examen (id, organizacion_id, paciente_id, consulta_id, tipo_examen_id, fecha_solicitud, estado, indicacion, notas, created_by)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'solicitado', ?7, ?8, ?9)",
         rusqlite::params![
             id,
             session.organizacion_id,
@@ -78,12 +84,91 @@ pub fn crear_examen(pool: State<DbPool>, session_state: State<SessionState>, pay
             payload.consulta_id,
             payload.tipo_examen_id,
             payload.fecha_solicitud,
+            limpiar(payload.indicacion.clone()),
             payload.notas,
             session.usuario_id,
         ],
-    )?;
+    )
+    .map_err(|e| match e {
+        rusqlite::Error::SqliteFailure(err, _) if err.code == rusqlite::ErrorCode::ConstraintViolation => {
+            ErrorApp::NoEncontrado("Paraclínico no encontrado en el catálogo".into())
+        }
+        other => ErrorApp::Db(other),
+    })?;
 
     audit::registrar(&conn, Some(&session.usuario_id), "examen", &id, Accion::Insert, None::<&()>, Some(&payload))?;
+
+    buscar_examen_por_id(&conn, &id)
+}
+
+/// Retira un paraclínico solicitado (y su pendiente asociado) mientras no tenga resultado.
+#[tauri::command]
+pub fn eliminar_examen(pool: State<DbPool>, session_state: State<SessionState>, id: String) -> Resultado<()> {
+    let session = session_state.get().ok_or(ErrorApp::SinSesion)?;
+    let mut conn = pool.get()?;
+    let examen = buscar_examen_por_id(&conn, &id)?;
+    if examen.fecha_resultado.is_some() {
+        return Err(ErrorApp::Validacion("El paraclínico ya tiene resultado y no se puede retirar.".into()));
+    }
+
+    let tx = conn.transaction()?;
+    tx.execute(
+        "UPDATE examen SET deleted_at = datetime('now'), deleted_by = ?1 WHERE id = ?2",
+        rusqlite::params![session.usuario_id, id],
+    )?;
+    tx.execute(
+        "UPDATE pendiente SET deleted_at = datetime('now'), deleted_by = ?1 WHERE examen_id = ?2 AND deleted_at IS NULL",
+        rusqlite::params![session.usuario_id, id],
+    )?;
+    audit::registrar(&tx, Some(&session.usuario_id), "examen", &id, Accion::Delete, None::<&()>, None::<&()>)?;
+    tx.commit()?;
+    Ok(())
+}
+
+/// Registra el resultado numérico de un paraclínico. La bandera alto/bajo sale de los rangos
+/// de referencia del catálogo según el sexo del paciente; el pendiente asociado queda entregado.
+#[tauri::command]
+pub fn registrar_resultado_examen(
+    pool: State<DbPool>,
+    session_state: State<SessionState>,
+    id: String,
+    payload: RegistrarResultadoExamenPayload,
+) -> Resultado<Examen> {
+    let session = session_state.get().ok_or(ErrorApp::SinSesion)?;
+    let mut conn = pool.get()?;
+    buscar_examen_por_id(&conn, &id)?;
+
+    let (sexo, min_m, max_m, min_h, max_h): (String, Option<f64>, Option<f64>, Option<f64>, Option<f64>) = conn.query_row(
+        "SELECT p.sexo, t.ref_min_mujer, t.ref_max_mujer, t.ref_min_hombre, t.ref_max_hombre
+         FROM examen e
+         JOIN paciente p ON p.id = e.paciente_id
+         JOIN tipo_examen_catalogo t ON t.id = e.tipo_examen_id
+         WHERE e.id = ?1",
+        rusqlite::params![id],
+        |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?)),
+    )?;
+    let es_mujer = sexo.to_lowercase().starts_with('f');
+    let (minimo, maximo) = if es_mujer { (min_m, max_m) } else { (min_h, max_h) };
+    let bandera = payload.valor.map(|v| match (minimo, maximo) {
+        (Some(min), _) if v < min => "bajo",
+        (_, Some(max)) if v > max => "alto",
+        _ => "normal",
+    });
+
+    let tx = conn.transaction()?;
+    tx.execute(
+        "UPDATE examen SET valor = ?1, bandera = ?2, notas = COALESCE(?3, notas), fecha_resultado = ?4, estado = 'resultado',
+             updated_at = datetime('now'), updated_by = ?5
+         WHERE id = ?6",
+        rusqlite::params![payload.valor, bandera, limpiar(payload.notas.clone()), hoy_local(), session.usuario_id, id],
+    )?;
+    tx.execute(
+        "UPDATE pendiente SET estado = 'entregado', entregado_at = ?1, updated_at = datetime('now'), updated_by = ?2
+         WHERE examen_id = ?3 AND deleted_at IS NULL AND estado != 'entregado'",
+        rusqlite::params![ahora_local(), session.usuario_id, id],
+    )?;
+    audit::registrar(&tx, Some(&session.usuario_id), "examen", &id, Accion::Update, None::<&()>, Some(&payload))?;
+    tx.commit()?;
 
     buscar_examen_por_id(&conn, &id)
 }

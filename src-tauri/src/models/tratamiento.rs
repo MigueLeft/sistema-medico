@@ -9,6 +9,7 @@ pub struct MedicamentoCatalogo {
     pub principio_activo: String,
     pub presentacion: Option<String>,
     pub concentracion: Option<String>,
+    pub alergenos: Option<String>,
 }
 
 impl MedicamentoCatalogo {
@@ -19,6 +20,7 @@ impl MedicamentoCatalogo {
             principio_activo: row.get("principio_activo")?,
             presentacion: row.get("presentacion")?,
             concentracion: row.get("concentracion")?,
+            alergenos: row.get("alergenos")?,
         })
     }
 }
@@ -38,6 +40,9 @@ pub struct TratamientoMedicamento {
     pub id: String,
     pub medicamento_id: String,
     pub medicamento_nombre: String,
+    pub presentacion: Option<String>,
+    pub concentracion: Option<String>,
+    pub alergenos: Option<String>,
     pub dosis: String,
     pub frecuencia: String,
     pub duracion: Option<String>,
@@ -51,6 +56,9 @@ impl TratamientoMedicamento {
             id: row.get("id")?,
             medicamento_id: row.get("medicamento_id")?,
             medicamento_nombre: row.get("medicamento_nombre")?,
+            presentacion: row.get("presentacion")?,
+            concentracion: row.get("concentracion")?,
+            alergenos: row.get("alergenos")?,
             dosis: row.get("dosis")?,
             frecuencia: row.get("frecuencia")?,
             duracion: row.get("duracion")?,

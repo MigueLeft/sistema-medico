@@ -1,20 +1,33 @@
-export { PlantillaEntregableForm } from './components/PlantillaEntregableForm';
-export { EntregablesPanel } from './components/EntregablesPanel';
-export { EntregablesList } from './components/EntregablesList';
+export { EditorEntregable } from './components/EditorEntregable';
+export { PlantillasDocumento } from './components/PlantillasDocumento';
+export { VistaPreviaEntregable } from './components/VistaPreviaEntregable';
+export { descripcionPlantilla, iconoDe, PAPELES } from './components/bloques';
 export {
   usePlantillaEntregable,
   useGuardarPlantillaEntregable,
+  usePlantillasDocumento,
+  useGuardarPlantillaDocumento,
   useEntregablesPaciente,
+  useEntregablesConsulta,
+  useEntregable,
   useCrearEntregable,
+  useGuardarEntregable,
+  useEmitirEntregable,
+  useEliminarEntregable,
   useAbrirEntregable,
 } from './hooks/useEntregables';
 export { entregablesService } from './services/entregables.service';
 export type {
-  PlantillaEntregable,
+  BloquePlantilla,
+  DatosEntregable,
   Entregable,
   EntregableItem,
-  CreateEntregablePayload,
+  EstadoEntregable,
+  GuardarEntregablePayload,
+  GuardarPlantillaDocumentoPayload,
   GuardarPlantillaEntregablePayload,
-  TipoEntregable,
-  TipoItem,
+  ItemEntregablePayload,
+  Papel,
+  PlantillaDocumento,
+  PlantillaEntregable,
 } from './types';
